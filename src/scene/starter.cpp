@@ -9,12 +9,10 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <memory>
 
-class PhyObj
+struct PhyObj
 {
 	sf::Vector2f Pos, Vel;
 	sf::RectangleShape Shape;
-
-  public:
 	PhyObj(sf::Vector2f pos, sf::Vector2f size, sf::Vector2f vel, sf::Color color)
 		: Pos(pos)
 		, Vel(vel)
@@ -33,7 +31,7 @@ class PhyObj
 		Pos += Vel * time;
 		Shape.setPosition(Pos);
 	}
-	void Draw(sf::RenderWindow& window)
+	void Draw(sf::RenderWindow &window) const
 	{
 		window.draw(Shape);
 	}
@@ -67,12 +65,13 @@ class Starter : public SfmlGameClass::AbstractScene
 	auto Update(SfmlGameClass &game, long time) -> UpdateResult override;
 	auto Draw(SfmlGameClass &game, long delta) -> int override;
 	auto Destroy(SfmlGameClass &game) -> int override;
+	auto Bounce() -> void;
 };
 } // namespace scenes
 
 using namespace scenes;
 
-auto Starter::Load(SfmlGameClass & /*unused*/) -> int
+auto Starter::Load(SfmlGameClass &game) -> int
 {
 	auto init = {
 		sf::Keyboard::Key::Escape,
@@ -81,6 +80,20 @@ auto Starter::Load(SfmlGameClass & /*unused*/) -> int
 		sf::Keyboard::Key::Right,
 	};
 	listener = std::make_unique<KeyListener>(init);
+	auto size = game._window.getSize();
+	Boundary = sf::IntRect(0, 0, size.x, size.y);
+	auto unit = size.x / game.SharedSettings.UnitDivisor;
+	ball = std::make_unique<PhyObj>(
+		sf::Vector2f((size.x / 2) - (unit / 2), (size.y / 2) - (unit / 2)),
+		sf::Vector2f(unit, unit),
+		sf::Vector2f(-game.SharedSettings.BallSpeed, -game.SharedSettings.BallSpeed),
+		sf::Color::White);
+	auto bd_width = unit * game.SharedSettings.BoardWidthUnit;
+	board = std::make_unique<PhyObj>(
+		sf::Vector2f((size.x / 2) - (bd_width / 2), size.y - unit),
+		sf::Vector2f(bd_width, unit),
+		sf::Vector2f(),
+		sf::Color::Yellow);
 	return 0;
 }
 
@@ -93,7 +106,47 @@ auto Starter::PollEvent(SfmlGameClass & /*unused*/, sf::Event event) -> int
 	return 0;
 }
 
-auto Starter::Update(SfmlGameClass &game, const long /*unused*/) -> Starter::UpdateResult
+auto Starter::Bounce() -> void
+{
+	const auto bll = ball->Shape.getGlobalBounds();
+	const auto brd = board->Shape.getGlobalBounds();
+	if (bll.left < Boundary.left || bll.left + bll.width > Boundary.left + Boundary.width)
+	{
+		ball->Vel.x = -ball->Vel.x;
+		if (bll.left < Boundary.left)
+		{
+			ball->Pos.x = Boundary.left;
+		}
+		else
+		{
+			ball->Pos.x = Boundary.left + Boundary.width - bll.width;
+		}
+	}
+	if(bll.top < Boundary.top)
+	{
+		ball->Vel.y = -ball->Vel.y;
+		ball->Pos.y = Boundary.top;
+	}
+	if(bll.intersects(brd))
+	{
+		ball->Vel.y = -ball->Vel.y;
+		ball->Pos.y = brd.top - bll.height;
+	}
+	if(brd.left < Boundary.left || brd.left + brd.width > Boundary.left + Boundary.width)
+	{
+		board->Vel.x = -board->Vel.x;
+		if(brd.left < Boundary.left)
+		{
+			board->Pos.x = Boundary.left;
+		}
+		else
+		{
+			board->Pos.x = Boundary.left + Boundary.width - brd.width;
+		}
+	}
+}
+
+auto Starter::Update(SfmlGameClass &game, const long time) -> Starter::UpdateResult
 {
 	bool esc_press = listener->ViewKey(sf::Keyboard::Escape) == KeyState::Just_Release;
 	bool ret_press = listener->ViewKey(sf::Keyboard::Enter) == KeyState::Just_Release;
@@ -104,27 +157,43 @@ auto Starter::Update(SfmlGameClass &game, const long /*unused*/) -> Starter::Upd
 		state = State::GameOver;
 	}
 	sf::Vector2f acc;
+	float delta = time / game.SharedSettings.TimeDivisor;
 	switch (state)
 	{
-	case State::Playing: 
-		if(ret_press)
+	case State::Playing:
+		if (ret_press)
 		{
 			board->SetColor(sf::Color::Blue);
 			ball->SetColor(sf::Color::Magenta);
 			state = State::Paused;
 		}
-		if(lft_press){acc.x = -1;}
-		else if(rgt_press) {acc.x = 1;}
-
-	break;
-	case State::Paused: 
-		if(ret_press)
+		if (lft_press)
+		{
+			acc.x = -1;
+		}
+		else if (rgt_press)
+		{
+			acc.x = 1;
+		}
+		board->Update(
+			acc * game.SharedSettings.BoardSpeed,
+			game.SharedSettings.BoardFriction,
+			delta);
+		ball->Update(sf::Vector2f(), 0, delta);
+		Bounce();
+		if(ball->Pos.y > Boundary.top + Boundary.height)
+		{
+			state = State::GameOver;
+		}
+		break;
+	case State::Paused:
+		if (ret_press)
 		{
 			board->SetColor(sf::Color::Yellow);
 			ball->SetColor(sf::Color::White);
 			state = State::Playing;
-		} 
-	break;
+		}
+		break;
 	case State::GameOver: game.ExitCall(); break;
 	}
 

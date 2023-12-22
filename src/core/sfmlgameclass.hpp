@@ -1,6 +1,7 @@
 #ifndef CORE
 #define CORE
 
+#include <SFML/Config.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window.hpp>
 #include <memory>
@@ -51,6 +52,8 @@ struct SfmlGameSettings
 	 *
 	 */
 	const sf::ContextSettings Context;
+	const sf::Uint8 UnitDivisor, BoardWidthUnit;
+	const float BoardFriction, BallSpeed, BoardSpeed, TimeDivisor;
 };
 
 /**

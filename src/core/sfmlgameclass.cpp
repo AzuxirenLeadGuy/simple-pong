@@ -27,6 +27,7 @@ SfmlGameClass::SfmlGameClass(const SfmlGameSettings &init_settings)
 	}
 	_main_error = 0;
 	_thread_err = 0;
+	_time_taken =0;
 }
 
 SfmlGameClass::~SfmlGameClass() = default;
