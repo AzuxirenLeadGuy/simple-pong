@@ -1,7 +1,6 @@
-# SFML Azuxiren's Template
+# Pong implemented with SFML Azuxiren's Template
 
-This template is for my personal projects, but feel free to use/change it to your needs.
-
+A simple implementation of Pong, using SFML Azuxiren's Template in C++.
 
 ## Pre-requisites
 
@@ -16,6 +15,11 @@ This template is for my personal projects, but feel free to use/change it to you
 
 
 Please go through the Makefile to understand how each tool work for each other. The build command `make build` and `make debug` does not use any of the mentioned optional tools. If the SFML library is loaded at a non-system path rather than being installed system-wide, you will also need to edit the makefile accordingly.
+
+
+## Build and run
+
+Use the command `make run` to build and run the game. Game is prepared in the `bin` folder.
 
 
 ## Purpose
